@@ -11,6 +11,18 @@ from typing import Optional
 from liveavatar_channel_sdk.event_type import EventType
 
 
+def _data_with_metadata(data: Optional[dict] = None, metadata: Optional[dict] = None) -> dict:
+    result = dict(data or {})
+    if metadata:
+        reserved = set(result)
+        overlap = reserved.intersection(metadata)
+        if overlap:
+            names = ", ".join(sorted(overlap))
+            raise ValueError(f"metadata cannot override reserved data field(s): {names}")
+        result.update(metadata)
+    return result
+
+
 class MessageBuilder:
     """Factory for constructing all protocol JSON messages."""
 
@@ -61,42 +73,50 @@ class MessageBuilder:
         return {"event": EventType.SCENE_READY}
 
     @staticmethod
-    def input_text(request_id: str, text: str) -> dict:
+    def input_text(request_id: str, text: str, metadata: Optional[dict] = None) -> dict:
         """input.text: User typed text input."""
         return {
             "event": EventType.INPUT_TEXT,
             "requestId": request_id,
-            "data": {"text": text},
+            "data": _data_with_metadata({"text": text}, metadata),
         }
 
     @staticmethod
-    def input_asr_partial(request_id: str, text: str, seq: int) -> dict:
+    def input_asr_partial(
+        request_id: str, text: str, seq: int, metadata: Optional[dict] = None
+    ) -> dict:
         """input.asr.partial: Streaming ASR result (final: false)."""
         return {
             "event": EventType.INPUT_ASR_PARTIAL,
             "requestId": request_id,
             "seq": seq,
-            "data": {"text": text, "final": False},
+            "data": _data_with_metadata({"text": text, "final": False}, metadata),
         }
 
     @staticmethod
-    def input_asr_final(request_id: str, text: str) -> dict:
+    def input_asr_final(request_id: str, text: str, metadata: Optional[dict] = None) -> dict:
         """input.asr.final: Final ASR result."""
         return {
             "event": EventType.INPUT_ASR_FINAL,
             "requestId": request_id,
-            "data": {"text": text},
+            "data": _data_with_metadata({"text": text}, metadata),
         }
 
     @staticmethod
-    def input_voice_start(request_id: str) -> dict:
+    def input_voice_start(request_id: str, metadata: Optional[dict] = None) -> dict:
         """input.voice.start: Voice activity start detected."""
-        return {"event": EventType.INPUT_VOICE_START, "requestId": request_id}
+        msg = {"event": EventType.INPUT_VOICE_START, "requestId": request_id}
+        if metadata:
+            msg["data"] = _data_with_metadata(metadata=metadata)
+        return msg
 
     @staticmethod
-    def input_voice_finish(request_id: str) -> dict:
+    def input_voice_finish(request_id: str, metadata: Optional[dict] = None) -> dict:
         """input.voice.finish: Voice activity end detected."""
-        return {"event": EventType.INPUT_VOICE_FINISH, "requestId": request_id}
+        msg = {"event": EventType.INPUT_VOICE_FINISH, "requestId": request_id}
+        if metadata:
+            msg["data"] = _data_with_metadata(metadata=metadata)
+        return msg
 
     @staticmethod
     def response_start(
@@ -105,6 +125,7 @@ class MessageBuilder:
         speed: float = 1.0,
         volume: float = 1.0,
         mood: Optional[str] = None,
+        metadata: Optional[dict] = None,
     ) -> dict:
         """response.start: Optional message to set TTS speed, volume, mood before chunks."""
         audio_config: dict = {"speed": speed, "volume": volume}
@@ -114,12 +135,17 @@ class MessageBuilder:
             "event": EventType.RESPONSE_START,
             "requestId": request_id,
             "responseId": response_id,
-            "data": {"audioConfig": audio_config},
+            "data": _data_with_metadata({"audioConfig": audio_config}, metadata),
         }
 
     @staticmethod
     def response_chunk(
-        request_id: str, response_id: str, seq: int, timestamp: int, text: str
+        request_id: str,
+        response_id: str,
+        seq: int,
+        timestamp: int,
+        text: str,
+        metadata: Optional[dict] = None,
     ) -> dict:
         """response.chunk: Streaming text chunk with seq and timestamp."""
         return {
@@ -128,35 +154,48 @@ class MessageBuilder:
             "responseId": response_id,
             "seq": seq,
             "timestamp": timestamp,
-            "data": {"text": text},
+            "data": _data_with_metadata({"text": text}, metadata),
         }
 
     @staticmethod
-    def response_done(request_id: str, response_id: str) -> dict:
+    def response_done(request_id: str, response_id: str, metadata: Optional[dict] = None) -> dict:
         """response.done: End of a streaming response."""
-        return {
+        msg = {
             "event": EventType.RESPONSE_DONE,
             "requestId": request_id,
             "responseId": response_id,
         }
+        if metadata:
+            msg["data"] = _data_with_metadata(metadata=metadata)
+        return msg
 
     @staticmethod
-    def response_audio_start(request_id: str, response_id: str) -> dict:
+    def response_audio_start(
+        request_id: str, response_id: str, metadata: Optional[dict] = None
+    ) -> dict:
         """response.audio.start: Audio output starting."""
-        return {
+        msg = {
             "event": EventType.RESPONSE_AUDIO_START,
             "requestId": request_id,
             "responseId": response_id,
         }
+        if metadata:
+            msg["data"] = _data_with_metadata(metadata=metadata)
+        return msg
 
     @staticmethod
-    def response_audio_finish(request_id: str, response_id: str) -> dict:
+    def response_audio_finish(
+        request_id: str, response_id: str, metadata: Optional[dict] = None
+    ) -> dict:
         """response.audio.finish: Audio output finished."""
-        return {
+        msg = {
             "event": EventType.RESPONSE_AUDIO_FINISH,
             "requestId": request_id,
             "responseId": response_id,
         }
+        if metadata:
+            msg["data"] = _data_with_metadata(metadata=metadata)
+        return msg
 
     @staticmethod
     def response_audio_prompt_start() -> dict:
@@ -177,11 +216,15 @@ class MessageBuilder:
         }
 
     @staticmethod
-    def control_interrupt(request_id: Optional[str] = None) -> dict:
+    def control_interrupt(
+        request_id: Optional[str] = None, metadata: Optional[dict] = None
+    ) -> dict:
         """control.interrupt: Interrupt current playback; optional request_id for targeting."""
         msg = {"event": EventType.CONTROL_INTERRUPT}
         if request_id is not None:
             msg["requestId"] = request_id
+        if metadata:
+            msg["data"] = _data_with_metadata(metadata=metadata)
         return msg
 
     @staticmethod
@@ -193,9 +236,12 @@ class MessageBuilder:
         }
 
     @staticmethod
-    def system_prompt(text: str) -> dict:
+    def system_prompt(text: str, metadata: Optional[dict] = None) -> dict:
         """system.prompt: Push idle-wakeup text for TTS playback."""
-        return {"event": EventType.SYSTEM_PROMPT, "data": {"text": text}}
+        return {
+            "event": EventType.SYSTEM_PROMPT,
+            "data": _data_with_metadata({"text": text}, metadata),
+        }
 
     @staticmethod
     def error(code: str, message: str, request_id: Optional[str] = None) -> dict:

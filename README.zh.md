@@ -4,7 +4,7 @@
 
 用于 Live Avatar WebSocket 协议的 Python SDK。将你的 AI 后端连接到实时数字人服务，支持文本、音频和图像通信。
 
-**版本 0.2.4** — 简化的 Agent API，仅少量公开类型。
+**版本 0.2.5** — 简化的 Agent API，仅少量公开类型。
 
 ## 安装
 
@@ -148,18 +148,18 @@ packed = frame.pack()   # bytes（9 字节头部 + 负载）
 
 | 方法 | 事件 | 说明 |
 |---|---|---|
-| `send_response_start(request_id, response_id, *, speed, volume, mood)` | `response.start` | 可选：在流式传输前配置 TTS 参数 |
-| `send_response_chunk(request_id, response_id, seq, timestamp, text)` | `response.chunk` | 流式文本片段 |
-| `send_response_done(request_id, response_id)` | `response.done` | 流式响应结束 |
+| `send_response_start(request_id, response_id, *, speed, volume, mood, metadata=None)` | `response.start` | 可选：在流式传输前配置 TTS 参数 |
+| `send_response_chunk(request_id, response_id, seq, timestamp, text, metadata=None)` | `response.chunk` | 流式文本片段 |
+| `send_response_done(request_id, response_id, metadata=None)` | `response.done` | 流式响应结束 |
 | `send_response_cancel(response_id)` | `response.cancel` | 取消进行中的响应流 |
 
 ### Developer TTS（你直接提供音频帧）
 
 | 方法 | 事件 | 说明 |
 |---|---|---|
-| `send_response_audio_start(request_id, response_id)` | `response.audio.start` | 表示音频输出开始 |
+| `send_response_audio_start(request_id, response_id, metadata=None)` | `response.audio.start` | 表示音频输出开始 |
 | `send_audio_frame(frame: AudioFrame)` | *(二进制)* | 发送二进制音频帧（9 字节头部 + PCM/Opus） |
-| `send_response_audio_finish(request_id, response_id)` | `response.audio.finish` | 表示音频输出结束 |
+| `send_response_audio_finish(request_id, response_id, metadata=None)` | `response.audio.finish` | 表示音频输出结束 |
 | `send_prompt_audio_start()` | `response.audio.promptStart` | 空闲提示音频开始 |
 | `send_prompt_audio_finish()` | `response.audio.promptFinish` | 空闲提示音频结束 |
 
@@ -167,17 +167,19 @@ packed = frame.pack()   # bytes（9 字节头部 + 负载）
 
 | 方法 | 事件 | 说明 |
 |---|---|---|
-| `send_voice_start(request_id)` | `input.voice.start` | 检测到语音活动 |
-| `send_asr_partial(request_id, text, seq)` | `input.asr.partial` | 流式 ASR 结果（部分） |
-| `send_voice_finish(request_id)` | `input.voice.finish` | 语音活动结束 |
-| `send_asr_final(request_id, text)` | `input.asr.final` | 最终 ASR 结果 |
+| `send_voice_start(request_id, metadata=None)` | `input.voice.start` | 检测到语音活动 |
+| `send_asr_partial(request_id, text, seq, metadata=None)` | `input.asr.partial` | 流式 ASR 结果（部分） |
+| `send_voice_finish(request_id, metadata=None)` | `input.voice.finish` | 语音活动结束 |
+| `send_asr_final(request_id, text, metadata=None)` | `input.asr.final` | 最终 ASR 结果 |
 
 ### 控制
 
 | 方法 | 事件 | 说明 |
 |---|---|---|
-| `send_interrupt(request_id=None)` | `control.interrupt` | 主动的业务逻辑打断。可选 `request_id` 实现精确目标 |
-| `send_prompt(text)` | `system.prompt` | 推送空闲唤醒文本触发 TTS 播放 |
+| `send_interrupt(request_id=None, metadata=None)` | `control.interrupt` | 主动的业务逻辑打断。可选 `request_id` 实现精确目标 |
+| `send_prompt(text, metadata=None)` | `system.prompt` | 推送空闲唤醒文本触发 TTS 播放 |
+
+`metadata` 是可选业务上下文，会合并到消息的 `data` payload 中。它适合用来关联面试等多步业务流程里的 prompt、ASR、response 和 control 事件。Metadata 不能覆盖 `text`、`final`、`audioConfig` 等协议保留字段。
 
 ### 错误
 

@@ -73,6 +73,16 @@ class TestMessageBuilderInput:
         assert msg["data"]["text"] == "hello world"
         assert set(msg.keys()) == {"event", "requestId", "data"}
 
+    def test_input_text_with_metadata(self):
+        msg = MessageBuilder.input_text(
+            "req-1",
+            "hello world",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["data"]["text"] == "hello world"
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+
     def test_input_asr_partial(self):
         msg = MessageBuilder.input_asr_partial("req-1", "hel", 1)
         assert msg["event"] == EventType.INPUT_ASR_PARTIAL
@@ -81,6 +91,18 @@ class TestMessageBuilderInput:
         assert msg["data"]["text"] == "hel"
         assert msg["data"]["final"] is False
         assert set(msg.keys()) == {"event", "requestId", "seq", "data"}
+
+    def test_input_asr_partial_with_metadata(self):
+        msg = MessageBuilder.input_asr_partial(
+            "req-1",
+            "hel",
+            1,
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["data"]["text"] == "hel"
+        assert msg["data"]["final"] is False
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
 
     def test_input_asr_final(self):
         msg = MessageBuilder.input_asr_final("req-1", "hello")
@@ -92,17 +114,62 @@ class TestMessageBuilderInput:
         assert "final" not in msg["data"]
         assert set(msg.keys()) == {"event", "requestId", "data"}
 
+    def test_input_asr_final_with_metadata(self):
+        msg = MessageBuilder.input_asr_final(
+            "req-1",
+            "hello",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["data"]["text"] == "hello"
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+
     def test_input_voice_start(self):
         msg = MessageBuilder.input_voice_start("req-1")
         assert msg["event"] == EventType.INPUT_VOICE_START
         assert msg["requestId"] == "req-1"
         assert set(msg.keys()) == {"event", "requestId"}
 
+    def test_input_voice_start_with_metadata(self):
+        msg = MessageBuilder.input_voice_start(
+            "req-1",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["event"] == EventType.INPUT_VOICE_START
+        assert msg["requestId"] == "req-1"
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+        assert set(msg.keys()) == {"event", "requestId", "data"}
+
     def test_input_voice_finish(self):
         msg = MessageBuilder.input_voice_finish("req-1")
         assert msg["event"] == EventType.INPUT_VOICE_FINISH
         assert msg["requestId"] == "req-1"
         assert set(msg.keys()) == {"event", "requestId"}
+
+    def test_input_voice_finish_with_metadata(self):
+        msg = MessageBuilder.input_voice_finish(
+            "req-1",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["event"] == EventType.INPUT_VOICE_FINISH
+        assert msg["requestId"] == "req-1"
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+        assert set(msg.keys()) == {"event", "requestId", "data"}
+
+    def test_input_metadata_cannot_override_reserved_data_fields(self):
+        for builder, args, metadata in (
+            (MessageBuilder.input_text, ("req-1", "hello"), {"text": "bad"}),
+            (MessageBuilder.input_asr_partial, ("req-1", "hel", 1), {"text": "bad"}),
+            (MessageBuilder.input_asr_partial, ("req-1", "hel", 1), {"final": True}),
+            (MessageBuilder.input_asr_final, ("req-1", "hello"), {"text": "bad"}),
+        ):
+            try:
+                builder(*args, metadata=metadata)
+            except ValueError:
+                continue
+            raise AssertionError("metadata override should raise ValueError")
 
 
 class TestMessageBuilderResponse:
@@ -132,6 +199,16 @@ class TestMessageBuilderResponse:
         assert msg["data"]["audioConfig"]["volume"] == 1.0
         assert msg["data"]["audioConfig"]["mood"] == "happy"
 
+    def test_response_start_with_metadata(self):
+        msg = MessageBuilder.response_start(
+            "req-1",
+            "resp-1",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["data"]["audioConfig"]["speed"] == 1.0
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+
     def test_response_chunk(self):
         msg = MessageBuilder.response_chunk("req-1", "resp-1", seq=3, timestamp=1000, text="hello")
         assert msg["event"] == EventType.RESPONSE_CHUNK
@@ -149,12 +226,38 @@ class TestMessageBuilderResponse:
             "data",
         }
 
+    def test_response_chunk_with_metadata(self):
+        msg = MessageBuilder.response_chunk(
+            "req-1",
+            "resp-1",
+            seq=3,
+            timestamp=1000,
+            text="hello",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["data"]["text"] == "hello"
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+
     def test_response_done(self):
         msg = MessageBuilder.response_done("req-1", "resp-1")
         assert msg["event"] == EventType.RESPONSE_DONE
         assert msg["requestId"] == "req-1"
         assert msg["responseId"] == "resp-1"
         assert set(msg.keys()) == {"event", "requestId", "responseId"}
+
+    def test_response_done_with_metadata(self):
+        msg = MessageBuilder.response_done(
+            "req-1",
+            "resp-1",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["event"] == EventType.RESPONSE_DONE
+        assert msg["requestId"] == "req-1"
+        assert msg["responseId"] == "resp-1"
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+        assert set(msg.keys()) == {"event", "requestId", "responseId", "data"}
 
     def test_response_audio_start(self):
         msg = MessageBuilder.response_audio_start("req-1", "resp-1")
@@ -163,12 +266,32 @@ class TestMessageBuilderResponse:
         assert msg["responseId"] == "resp-1"
         assert set(msg.keys()) == {"event", "requestId", "responseId"}
 
+    def test_response_audio_start_with_metadata(self):
+        msg = MessageBuilder.response_audio_start(
+            "req-1",
+            "resp-1",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+        assert set(msg.keys()) == {"event", "requestId", "responseId", "data"}
+
     def test_response_audio_finish(self):
         msg = MessageBuilder.response_audio_finish("req-1", "resp-1")
         assert msg["event"] == EventType.RESPONSE_AUDIO_FINISH
         assert msg["requestId"] == "req-1"
         assert msg["responseId"] == "resp-1"
         assert set(msg.keys()) == {"event", "requestId", "responseId"}
+
+    def test_response_audio_finish_with_metadata(self):
+        msg = MessageBuilder.response_audio_finish(
+            "req-1",
+            "resp-1",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+        assert set(msg.keys()) == {"event", "requestId", "responseId", "data"}
 
     def test_response_audio_prompt_start(self):
         msg = MessageBuilder.response_audio_prompt_start()
@@ -202,6 +325,17 @@ class TestMessageBuilderControl:
         assert msg["requestId"] == "req-1"
         assert set(msg.keys()) == {"event", "requestId"}
 
+    def test_control_interrupt_with_metadata(self):
+        msg = MessageBuilder.control_interrupt(
+            request_id="req-1",
+            metadata={"reason": "skip_question", "questionId": "q-1"},
+        )
+        assert msg["event"] == EventType.CONTROL_INTERRUPT
+        assert msg["requestId"] == "req-1"
+        assert msg["data"]["reason"] == "skip_question"
+        assert msg["data"]["questionId"] == "q-1"
+        assert set(msg.keys()) == {"event", "requestId", "data"}
+
 
 class TestMessageBuilderSystem:
     """Test system-related message builders."""
@@ -218,6 +352,24 @@ class TestMessageBuilderSystem:
         assert msg["event"] == EventType.SYSTEM_PROMPT
         assert msg["data"]["text"] == "Hey there, are you there?"
         assert set(msg.keys()) == {"event", "data"}
+
+    def test_system_prompt_with_metadata(self):
+        msg = MessageBuilder.system_prompt(
+            "Question text",
+            metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+        )
+        assert msg["event"] == EventType.SYSTEM_PROMPT
+        assert msg["data"]["text"] == "Question text"
+        assert msg["data"]["questionId"] == "q-1"
+        assert msg["data"]["exchangeId"] == "ex-1"
+        assert set(msg.keys()) == {"event", "data"}
+
+    def test_system_prompt_metadata_cannot_override_text(self):
+        try:
+            MessageBuilder.system_prompt("Question text", metadata={"text": "bad"})
+        except ValueError:
+            return
+        raise AssertionError("metadata override should raise ValueError")
 
 
 class TestMessageBuilderError:

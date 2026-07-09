@@ -4,7 +4,7 @@
 
 A Python SDK for the Live Avatar WebSocket protocol. Connect your AI backend to a live avatar service with text, audio, and image communication.
 
-**Version 0.2.4** — simplified Agent API with a minimal set of public types.
+**Version 0.2.5** — simplified Agent API with a minimal set of public types.
 
 ## Installation
 
@@ -151,18 +151,18 @@ All send methods are available on `AvatarAgent`. They are grouped by protocol ro
 
 | Method | Event | Description |
 |---|---|---|
-| `send_response_start(request_id, response_id, *, speed, volume, mood)` | `response.start` | Optional: configure TTS parameters before streaming |
-| `send_response_chunk(request_id, response_id, seq, timestamp, text)` | `response.chunk` | Streaming text chunk |
-| `send_response_done(request_id, response_id)` | `response.done` | End of streaming response |
+| `send_response_start(request_id, response_id, *, speed, volume, mood, metadata=None)` | `response.start` | Optional: configure TTS parameters before streaming |
+| `send_response_chunk(request_id, response_id, seq, timestamp, text, metadata=None)` | `response.chunk` | Streaming text chunk |
+| `send_response_done(request_id, response_id, metadata=None)` | `response.done` | End of streaming response |
 | `send_response_cancel(response_id)` | `response.cancel` | Cancel an in-progress response stream |
 
 ### Developer TTS (you provide audio frames directly)
 
 | Method | Event | Description |
 |---|---|---|
-| `send_response_audio_start(request_id, response_id)` | `response.audio.start` | Signal that audio output is starting |
+| `send_response_audio_start(request_id, response_id, metadata=None)` | `response.audio.start` | Signal that audio output is starting |
 | `send_audio_frame(frame: AudioFrame)` | *(binary)* | Send a binary audio frame (9-byte header + PCM/Opus) |
-| `send_response_audio_finish(request_id, response_id)` | `response.audio.finish` | Signal that audio output finished |
+| `send_response_audio_finish(request_id, response_id, metadata=None)` | `response.audio.finish` | Signal that audio output finished |
 | `send_prompt_audio_start()` | `response.audio.promptStart` | Idle-prompt audio starting |
 | `send_prompt_audio_finish()` | `response.audio.promptFinish` | Idle-prompt audio finished |
 
@@ -170,17 +170,23 @@ All send methods are available on `AvatarAgent`. They are grouped by protocol ro
 
 | Method | Event | Description |
 |---|---|---|
-| `send_voice_start(request_id)` | `input.voice.start` | Voice activity detected |
-| `send_asr_partial(request_id, text, seq)` | `input.asr.partial` | Streaming ASR result (partial) |
-| `send_voice_finish(request_id)` | `input.voice.finish` | Voice activity ended |
-| `send_asr_final(request_id, text)` | `input.asr.final` | Final ASR result |
+| `send_voice_start(request_id, metadata=None)` | `input.voice.start` | Voice activity detected |
+| `send_asr_partial(request_id, text, seq, metadata=None)` | `input.asr.partial` | Streaming ASR result (partial) |
+| `send_voice_finish(request_id, metadata=None)` | `input.voice.finish` | Voice activity ended |
+| `send_asr_final(request_id, text, metadata=None)` | `input.asr.final` | Final ASR result |
 
 ### Control
 
 | Method | Event | Description |
 |---|---|---|
-| `send_interrupt(request_id=None)` | `control.interrupt` | Proactive, business-logic-driven interrupt. Optional `request_id` for precise targeting. |
-| `send_prompt(text)` | `system.prompt` | Push idle-wakeup text for TTS playback |
+| `send_interrupt(request_id=None, metadata=None)` | `control.interrupt` | Proactive, business-logic-driven interrupt. Optional `request_id` for precise targeting. |
+| `send_prompt(text, metadata=None)` | `system.prompt` | Push idle-wakeup text for TTS playback |
+
+`metadata` is optional business context merged into the message `data` payload.
+It is useful for correlating multi-step application flows such as interviews,
+where the same exchange spans prompt, ASR, response, and control events.
+Metadata cannot override reserved protocol data fields such as `text`,
+`final`, or `audioConfig`.
 
 ### Error
 

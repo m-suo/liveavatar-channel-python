@@ -67,6 +67,20 @@ async def test_send_response_start_defaults(agent: AvatarAgent):
 
 
 @pytest.mark.asyncio
+async def test_send_response_start_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_response_start(
+        "req-1",
+        "resp-1",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["data"]["audioConfig"]["speed"] == 1.0
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
+
+
+@pytest.mark.asyncio
 async def test_send_response_chunk(agent: AvatarAgent):
     ws = _inject_ws(agent, FakeWs())
     await agent.send_response_chunk("req-1", "resp-1", seq=3, timestamp=1000, text="hi")
@@ -77,10 +91,41 @@ async def test_send_response_chunk(agent: AvatarAgent):
 
 
 @pytest.mark.asyncio
+async def test_send_response_chunk_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_response_chunk(
+        "req-1",
+        "resp-1",
+        seq=3,
+        timestamp=1000,
+        text="hi",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["data"]["text"] == "hi"
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
+
+
+@pytest.mark.asyncio
 async def test_send_response_done(agent: AvatarAgent):
     ws = _inject_ws(agent, FakeWs())
     await agent.send_response_done("req-1", "resp-1")
     assert ws.json_messages[0]["event"] == EventType.RESPONSE_DONE
+
+
+@pytest.mark.asyncio
+async def test_send_response_done_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_response_done(
+        "req-1",
+        "resp-1",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["event"] == EventType.RESPONSE_DONE
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
 
 
 @pytest.mark.asyncio
@@ -104,11 +149,37 @@ async def test_send_response_audio_start(agent: AvatarAgent):
 
 
 @pytest.mark.asyncio
+async def test_send_response_audio_start_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_response_audio_start(
+        "req-1",
+        "resp-1",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
+
+
+@pytest.mark.asyncio
 async def test_send_response_audio_finish(agent: AvatarAgent):
     ws = _inject_ws(agent, FakeWs())
     await agent.send_response_audio_finish("req-1", "resp-1")
     msg = ws.json_messages[0]
     assert msg["event"] == EventType.RESPONSE_AUDIO_FINISH
+
+
+@pytest.mark.asyncio
+async def test_send_response_audio_finish_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_response_audio_finish(
+        "req-1",
+        "resp-1",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
 
 
 @pytest.mark.asyncio
@@ -148,10 +219,37 @@ async def test_send_voice_start(agent: AvatarAgent):
 
 
 @pytest.mark.asyncio
+async def test_send_voice_start_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_voice_start(
+        "req-1",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["event"] == EventType.INPUT_VOICE_START
+    assert msg["requestId"] == "req-1"
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
+
+
+@pytest.mark.asyncio
 async def test_send_voice_finish(agent: AvatarAgent):
     ws = _inject_ws(agent, FakeWs())
     await agent.send_voice_finish("req-1")
     assert ws.json_messages[0]["event"] == EventType.INPUT_VOICE_FINISH
+
+
+@pytest.mark.asyncio
+async def test_send_voice_finish_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_voice_finish(
+        "req-1",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["event"] == EventType.INPUT_VOICE_FINISH
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
 
 
 @pytest.mark.asyncio
@@ -164,10 +262,41 @@ async def test_send_asr_partial(agent: AvatarAgent):
 
 
 @pytest.mark.asyncio
+async def test_send_asr_partial_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_asr_partial(
+        "req-1",
+        "hel",
+        1,
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["event"] == EventType.INPUT_ASR_PARTIAL
+    assert msg["data"]["text"] == "hel"
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
+
+
+@pytest.mark.asyncio
 async def test_send_asr_final(agent: AvatarAgent):
     ws = _inject_ws(agent, FakeWs())
     await agent.send_asr_final("req-1", "hello")
     assert ws.json_messages[0]["event"] == EventType.INPUT_ASR_FINAL
+
+
+@pytest.mark.asyncio
+async def test_send_asr_final_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_asr_final(
+        "req-1",
+        "hello",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["event"] == EventType.INPUT_ASR_FINAL
+    assert msg["data"]["text"] == "hello"
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
 
 
 # -- Control ----------------------------------------------------------------
@@ -188,6 +317,19 @@ async def test_send_interrupt_with_request_id(agent: AvatarAgent):
     assert ws.json_messages[0]["requestId"] == "req-1"
 
 
+@pytest.mark.asyncio
+async def test_send_interrupt_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_interrupt(
+        request_id="req-1",
+        metadata={"reason": "skip_question", "questionId": "q-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["requestId"] == "req-1"
+    assert msg["data"]["reason"] == "skip_question"
+    assert msg["data"]["questionId"] == "q-1"
+
+
 # -- System -----------------------------------------------------------------
 
 
@@ -198,6 +340,20 @@ async def test_send_prompt(agent: AvatarAgent):
     msg = ws.json_messages[0]
     assert msg["event"] == EventType.SYSTEM_PROMPT
     assert msg["data"]["text"] == "Are you still there?"
+
+
+@pytest.mark.asyncio
+async def test_send_prompt_with_metadata(agent: AvatarAgent):
+    ws = _inject_ws(agent, FakeWs())
+    await agent.send_prompt(
+        "Question text",
+        metadata={"questionId": "q-1", "exchangeId": "ex-1"},
+    )
+    msg = ws.json_messages[0]
+    assert msg["event"] == EventType.SYSTEM_PROMPT
+    assert msg["data"]["text"] == "Question text"
+    assert msg["data"]["questionId"] == "q-1"
+    assert msg["data"]["exchangeId"] == "ex-1"
 
 
 # -- Error ------------------------------------------------------------------
@@ -298,10 +454,14 @@ async def test_rest_start_sends_websocket_agent_mode(agent_with_config: AvatarAg
 
     def capture_body(request):
         body_capture.update(json.loads(request.content))
-        return httpx.Response(200, json={
-            "code": 0, "message": "success",
-            "data": {"sessionId": "s", "sfuUrl": "u", "userToken": "t"},
-        })
+        return httpx.Response(
+            200,
+            json={
+                "code": 0,
+                "message": "success",
+                "data": {"sessionId": "s", "sfuUrl": "u", "userToken": "t"},
+            },
+        )
 
     httpx_mock.add_callback(
         capture_body,
@@ -367,10 +527,14 @@ async def test_rest_start_with_voice_id(agent_with_config: AvatarAgent, httpx_mo
 
     def capture_body(request):
         body_capture.update(json.loads(request.content))
-        return httpx.Response(200, json={
-            "code": 0, "message": "success",
-            "data": {"sessionId": "s", "sfuUrl": "u", "userToken": "t"},
-        })
+        return httpx.Response(
+            200,
+            json={
+                "code": 0,
+                "message": "success",
+                "data": {"sessionId": "s", "sfuUrl": "u", "userToken": "t"},
+            },
+        )
 
     httpx_mock.add_callback(
         capture_body,
@@ -457,10 +621,14 @@ async def test_rest_start_sandbox_header(httpx_mock):
 
     def capture_headers(request):
         headers_capture.update(dict(request.headers))
-        return httpx.Response(200, json={
-            "code": 0, "message": "success",
-            "data": {"sessionId": "s", "sfuUrl": "u", "userToken": "t"},
-        })
+        return httpx.Response(
+            200,
+            json={
+                "code": 0,
+                "message": "success",
+                "data": {"sessionId": "s", "sfuUrl": "u", "userToken": "t"},
+            },
+        )
 
     httpx_mock.add_callback(
         capture_headers,

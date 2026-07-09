@@ -65,6 +65,7 @@ def _serialize_voice_config(voice_config: dict[str, int | float | None]) -> dict
 # AgentListener
 # ------------------------------------------------------------------
 
+
 class AgentListener:
     """Callback interface for receiving protocol events.
 
@@ -100,6 +101,7 @@ class AgentListener:
 # ------------------------------------------------------------------
 # AvatarAgentConfig
 # ------------------------------------------------------------------
+
 
 @dataclass
 class AvatarAgentConfig:
@@ -139,6 +141,7 @@ class AvatarAgentConfig:
 # ------------------------------------------------------------------
 # AvatarAgent
 # ------------------------------------------------------------------
+
 
 class AvatarAgent:
     """Single entry point for the Live Avatar Channel SDK.
@@ -215,9 +218,7 @@ class AvatarAgent:
         except asyncio.TimeoutError:
             await self._ws_client.disconnect()
             self._ws_client = None
-            raise RuntimeError(
-                f"Timed out waiting for session.init after {self._config.timeout}s"
-            )
+            raise RuntimeError(f"Timed out waiting for session.init after {self._config.timeout}s")
 
         self._session_id = result.session_id
         return result
@@ -295,9 +296,10 @@ class AvatarAgent:
         speed: float = 1.0,
         volume: float = 1.0,
         mood: str | None = None,
+        metadata: dict | None = None,
     ) -> None:
         await self._require_ws().send_json(
-            MessageBuilder.response_start(request_id, response_id, speed, volume, mood)
+            MessageBuilder.response_start(request_id, response_id, speed, volume, mood, metadata)
         )
 
     async def send_response_chunk(
@@ -307,87 +309,80 @@ class AvatarAgent:
         seq: int,
         timestamp: int,
         text: str,
+        metadata: dict | None = None,
     ) -> None:
         await self._require_ws().send_json(
-            MessageBuilder.response_chunk(request_id, response_id, seq, timestamp, text)
+            MessageBuilder.response_chunk(request_id, response_id, seq, timestamp, text, metadata)
         )
 
     async def send_response_done(
-        self, request_id: str, response_id: str
+        self, request_id: str, response_id: str, metadata: dict | None = None
     ) -> None:
         await self._require_ws().send_json(
-            MessageBuilder.response_done(request_id, response_id)
+            MessageBuilder.response_done(request_id, response_id, metadata)
         )
 
     async def send_response_cancel(self, response_id: str) -> None:
-        await self._require_ws().send_json(
-            MessageBuilder.response_cancel(response_id)
-        )
+        await self._require_ws().send_json(MessageBuilder.response_cancel(response_id))
 
     # -- send: Developer TTS -----------------------------------------------
 
     async def send_response_audio_start(
-        self, request_id: str, response_id: str
+        self, request_id: str, response_id: str, metadata: dict | None = None
     ) -> None:
         await self._require_ws().send_json(
-            MessageBuilder.response_audio_start(request_id, response_id)
+            MessageBuilder.response_audio_start(request_id, response_id, metadata)
         )
 
     async def send_audio_frame(self, frame: AudioFrame) -> None:
         await self._require_ws().send_binary(frame.pack())
 
     async def send_response_audio_finish(
-        self, request_id: str, response_id: str
+        self, request_id: str, response_id: str, metadata: dict | None = None
     ) -> None:
         await self._require_ws().send_json(
-            MessageBuilder.response_audio_finish(request_id, response_id)
+            MessageBuilder.response_audio_finish(request_id, response_id, metadata)
         )
 
     # -- send: idle prompt audio (Developer TTS mode) ----------------------
 
     async def send_prompt_audio_start(self) -> None:
-        await self._require_ws().send_json(
-            MessageBuilder.response_audio_prompt_start()
-        )
+        await self._require_ws().send_json(MessageBuilder.response_audio_prompt_start())
 
     async def send_prompt_audio_finish(self) -> None:
-        await self._require_ws().send_json(
-            MessageBuilder.response_audio_prompt_finish()
-        )
+        await self._require_ws().send_json(MessageBuilder.response_audio_prompt_finish())
 
     # -- send: Developer ASR / Omni -----------------------------------------
 
-    async def send_voice_start(self, request_id: str) -> None:
-        await self._require_ws().send_json(
-            MessageBuilder.input_voice_start(request_id)
-        )
+    async def send_voice_start(self, request_id: str, metadata: dict | None = None) -> None:
+        await self._require_ws().send_json(MessageBuilder.input_voice_start(request_id, metadata))
 
     async def send_asr_partial(
-        self, request_id: str, text: str, seq: int
+        self, request_id: str, text: str, seq: int, metadata: dict | None = None
     ) -> None:
         await self._require_ws().send_json(
-            MessageBuilder.input_asr_partial(request_id, text, seq)
+            MessageBuilder.input_asr_partial(request_id, text, seq, metadata)
         )
 
-    async def send_voice_finish(self, request_id: str) -> None:
-        await self._require_ws().send_json(
-            MessageBuilder.input_voice_finish(request_id)
-        )
+    async def send_voice_finish(self, request_id: str, metadata: dict | None = None) -> None:
+        await self._require_ws().send_json(MessageBuilder.input_voice_finish(request_id, metadata))
 
-    async def send_asr_final(self, request_id: str, text: str) -> None:
+    async def send_asr_final(
+        self, request_id: str, text: str, metadata: dict | None = None
+    ) -> None:
         await self._require_ws().send_json(
-            MessageBuilder.input_asr_final(request_id, text)
+            MessageBuilder.input_asr_final(request_id, text, metadata)
         )
 
     # -- send: control -----------------------------------------------------
 
-    async def send_interrupt(self, request_id: str | None = None) -> None:
-        await self._require_ws().send_json(
-            MessageBuilder.control_interrupt(request_id)
-        )
+    async def send_interrupt(
+        self, request_id: str | None = None, metadata: dict | None = None
+    ) -> None:
+        await self._require_ws().send_json(MessageBuilder.control_interrupt(request_id, metadata))
 
-    async def send_prompt(self, text: str) -> None:
-        await self._require_ws().send_json(MessageBuilder.system_prompt(text))
+    async def send_prompt(self, text: str, metadata: dict | None = None) -> None:
+        await self._require_ws().send_json(MessageBuilder.system_prompt(text, metadata))
 
     # -- send: error -------------------------------------------------------
 
@@ -397,9 +392,7 @@ class AvatarAgent:
         message: str,
         request_id: str | None = None,
     ) -> None:
-        await self._require_ws().send_json(
-            MessageBuilder.error(code, message, request_id)
-        )
+        await self._require_ws().send_json(MessageBuilder.error(code, message, request_id))
 
     # -- send: custom event -------------------------------------------------
 
@@ -431,6 +424,7 @@ class AvatarAgent:
 # ------------------------------------------------------------------
 # Internal bridge — adapts AgentListener to _AgentCallbacks Protocol
 # ------------------------------------------------------------------
+
 
 class _ListenerBridge:
     """Forwards _AgentCallbacks to AgentListener, suppressing exceptions."""
