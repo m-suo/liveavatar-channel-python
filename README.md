@@ -4,7 +4,7 @@
 
 A Python SDK for the Live Avatar WebSocket protocol. Connect your AI backend to a live avatar service with text, audio, and image communication.
 
-**Version 0.2.5** — simplified Agent API with a minimal set of public types.
+**Version 0.2.6** — simplified Agent API with a minimal set of public types.
 
 ## Installation
 

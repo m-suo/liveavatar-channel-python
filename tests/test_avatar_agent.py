@@ -9,7 +9,12 @@ import httpx
 import pytest
 
 from liveavatar_channel_sdk.audio_frame import AudioFrame
-from liveavatar_channel_sdk.avatar_agent import AvatarAgent, AgentListener, AvatarAgentConfig
+from liveavatar_channel_sdk.avatar_agent import (
+    AvatarAgent,
+    AgentListener,
+    AvatarAgentConfig,
+    _ListenerBridge,
+)
 from liveavatar_channel_sdk.event_type import EventType
 from liveavatar_channel_sdk.session_models import SessionStartError, ErrorCode
 
@@ -28,6 +33,14 @@ class FakeWs:
         self.binary_messages.append(data)
 
 
+class SceneReadyListener(AgentListener):
+    def __init__(self) -> None:
+        self.scene_ready_count = 0
+
+    async def on_scene_ready(self) -> None:
+        self.scene_ready_count += 1
+
+
 @pytest.fixture
 def agent() -> AvatarAgent:
     config = AvatarAgentConfig(api_key="sk-test", avatar_id="avatar-1")
@@ -38,6 +51,16 @@ def agent() -> AvatarAgent:
 def _inject_ws(a: AvatarAgent, ws: FakeWs) -> FakeWs:
     a._ws_client = ws
     return ws
+
+
+@pytest.mark.asyncio
+async def test_listener_bridge_forwards_scene_ready():
+    listener = SceneReadyListener()
+    bridge = _ListenerBridge(listener)
+
+    await bridge.on_scene_ready()
+
+    assert listener.scene_ready_count == 1
 
 
 # -- Platform TTS -----------------------------------------------------------

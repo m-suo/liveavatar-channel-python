@@ -88,6 +88,9 @@ class AgentListener:
     async def on_idle_trigger(self, reason: str, idle_time_ms: int) -> None:
         """Platform detected prolonged user inactivity."""
 
+    async def on_scene_ready(self) -> None:
+        """Frontend avatar scene is ready for conversation."""
+
     async def on_audio_frame(self, frame: AudioFrame) -> None:
         """Raw binary audio frame received (Developer ASR mode only)."""
 
@@ -461,6 +464,12 @@ class _ListenerBridge:
             await self._listener.on_idle_trigger(reason, idle_time_ms)
         except Exception as exc:
             logger.error("on_idle_trigger error: %s", exc)
+
+    async def on_scene_ready(self) -> None:
+        try:
+            await self._listener.on_scene_ready()
+        except Exception as exc:
+            logger.error("on_scene_ready error: %s", exc)
 
     async def on_error(self, code: str, message: str) -> None:
         try:
